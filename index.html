@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meu Bloquinho</title>
+<meta name="description" content="Anotações e tarefas do dia a dia.">
+<meta name="theme-color" content="#fbf8f2">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bloquinho">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<!--APP-START-->
+<header class="top">
+  <div class="top-row">
+    <div class="brand">
+      <h1>Meu Bloquinho</h1>
+      <div class="today" id="today"></div>
+      <div class="status" id="status" aria-live="polite"></div>
+    </div>
+    <button class="icon-btn" id="openBackup" type="button" aria-label="Backup e sincronização">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 9.5H7z"/><path d="M12 11v5m0-5-2 2m2-2 2 2"/></svg>
+      Backup
+    </button>
+  </div>
+</header>
+
+<main id="main">
+  <div class="preview-note" id="previewNote" hidden></div>
+
+  <!-- ANOTAÇÕES -->
+  <section id="view-notes" aria-label="Anotações">
+    <form class="composer" id="noteForm" autocomplete="off">
+      <textarea id="noteText" rows="2" placeholder="Escreva uma anotação…" aria-label="Nova anotação"></textarea>
+      <div class="composer-row">
+        <span class="chip" id="noteDateChip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+          <span id="noteDateLabel">Data</span>
+          <input type="date" id="noteDate" aria-label="Data da anotação (opcional)">
+          <button type="button" class="clear" id="noteDateClear" aria-label="Tirar data" hidden>×</button>
+        </span>
+        <span class="spacer"></span>
+        <button class="btn-primary" type="submit" id="noteSave" disabled>Guardar</button>
+      </div>
+    </form>
+    <div class="sheet-page" id="notesList"></div>
+  </section>
+
+  <!-- TAREFAS -->
+  <section id="view-tasks" aria-label="Tarefas" hidden>
+    <form class="composer" id="taskForm" autocomplete="off">
+      <input type="text" id="taskText" placeholder="Nova tarefa…" aria-label="Nova tarefa" enterkeyhint="done">
+      <div class="composer-row" role="group" aria-label="Quando">
+        <button type="button" class="chip" data-when="today" aria-pressed="true">Hoje</button>
+        <button type="button" class="chip" data-when="tomorrow" aria-pressed="false">Amanhã</button>
+        <span class="chip" id="taskDateChip" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+          <span id="taskDateLabel">Outra</span>
+          <input type="date" id="taskDate" aria-label="Escolher outra data">
+        </span>
+        <button type="button" class="chip" data-when="none" aria-pressed="false">Sem data</button>
+      </div>
+      <div class="composer-row">
+        <span class="spacer"></span>
+        <button class="btn-primary" type="submit" id="taskSave" disabled>Adicionar</button>
+      </div>
+    </form>
+    <div class="sheet-page" id="tasksList"></div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Seções">
+  <div class="tabs-inner" role="tablist">
+    <button class="tab" role="tab" id="tab-notes" data-view="notes" aria-selected="true" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M9 11h6M9 14.5h6M9 18h3.5"/></svg>
+      Anotações
+    </button>
+    <button class="tab" role="tab" id="tab-tasks" data-view="tasks" aria-selected="false" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+      Tarefas <span class="badge" id="lateBadge" hidden></span>
+    </button>
+  </div>
+</nav>
+
+<div id="layer"></div>
+<input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
+<!--APP-END-->
+<script src="app.js"></script>
+</body>
+</html>
