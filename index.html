@@ -10,10 +10,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Bloquinho">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="app.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="app.css?v=2">
 </head>
 <body>
 <!--APP-START-->
@@ -33,6 +33,13 @@
 
 <main id="main">
   <div class="preview-note" id="previewNote" hidden></div>
+  <div class="install-banner" id="installBanner" hidden>
+    <span>Instale o Bloquinho para abrir direto da tela inicial, mesmo sem internet.</span>
+    <div class="install-actions">
+      <button type="button" class="btn-ghost" id="installLater">Agora não</button>
+      <button type="button" class="btn-primary" id="installBtn">Instalar app</button>
+    </div>
+  </div>
 
   <!-- ANOTAÇÕES -->
   <section id="view-notes" aria-label="Anotações">
@@ -91,6 +98,6 @@
 <div id="layer"></div>
 <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
 <!--APP-END-->
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>

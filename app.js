@@ -539,6 +539,11 @@
       '<div class="panel-actions"><button type="button" class="btn-primary" id="bkExport">Salvar cópia</button>' +
       '<button type="button" class="btn-ghost" id="bkImport">Restaurar de um arquivo</button></div>' +
       '<p style="font-size:13px">Restaurar não apaga nada: traz de volta o que está no arquivo e mantém o que já existe aqui.</p></div>' +
+      '<h3>Instalação no celular</h3>' +
+      '<div class="box">' + installSummary() +
+      '<div class="panel-actions">' + (deferredInstall ? '<button type="button" class="btn-primary" id="bkInstall">Instalar app</button>' : '') +
+      '<button type="button" class="btn-ghost" id="bkCheck">Verificar instalação</button></div>' +
+      '<ul class="checks" id="bkChecks"></ul></div>' +
       '<div class="panel-actions"><span class="spacer"></span><button type="button" class="btn-ghost" id="bkClose">Fechar</button></div>';
     var panel = document.querySelector('.panel');
     if (!panel) { openLayer(html); } else { panel.innerHTML = '<div class="grip"></div>' + html; }
@@ -547,6 +552,8 @@
 
   function bindBackup() {
     $('bkClose').addEventListener('click', function () { backupOpen = false; closeLayer(); });
+    $('bkCheck').addEventListener('click', runInstallChecks);
+    if ($('bkInstall')) $('bkInstall').addEventListener('click', promptInstall);
     $('bkExport').addEventListener('click', doExport);
     $('bkImport').addEventListener('click', function () { $('importFile').click(); });
     if (sync) {
@@ -623,8 +630,90 @@
   if (sync) scheduleSync(400);
 
   // funciona sem internet depois da primeira abertura
-  if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
+  var swError = '';
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function (e) { swError = (e && e.message) || 'erro'; });
+  }
+
+  /* ================= instalação (Android/Chrome) ================= */
+  var deferredInstall = null;
+  function isInstalled() {
+    return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  }
+  function installSummary() {
+    if (isInstalled()) return '<div class="sync-state"><span class="dot ok"></span>Aberto como app instalado</div>';
+    if (deferredInstall) return '<div class="sync-state"><span class="dot ok"></span>Pronto para instalar</div><p>Toque em Instalar app. O Bloquinho vai para a gaveta de apps como qualquer outro aplicativo.</p>';
+    return '<div class="sync-state"><span class="dot"></span>Aberto pelo navegador</div><p>No Chrome do Android, use o menu ⋮ → Instalar app. Se não der certo, toque em Verificar instalação para ver o que falta.</p>';
+  }
+  function promptInstall() {
+    if (!deferredInstall) return;
+    var ev = deferredInstall; deferredInstall = null;
+    ev.prompt();
+    (ev.userChoice || Promise.resolve({})).then(function (c) {
+      if (c && c.outcome === 'accepted') toast('Instalando o Bloquinho…');
+      renderInstallBanner(); if (backupOpen) renderBackup();
+    });
+  }
+  function renderInstallBanner() {
+    var el = $('installBanner'); if (!el) return;
+    el.hidden = !(deferredInstall && !isInstalled());
+  }
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); deferredInstall = e; renderInstallBanner(); if (backupOpen) renderBackup();
+  });
+  window.addEventListener('appinstalled', function () {
+    deferredInstall = null; renderInstallBanner(); toast('Bloquinho instalado. Procure o ícone na tela inicial.');
+  });
+  if ($('installBtn')) $('installBtn').addEventListener('click', promptInstall);
+  if ($('installLater')) $('installLater').addEventListener('click', function () { $('installBanner').hidden = true; });
+
+  function loadImage(src) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () { resolve({ ok: true, w: img.naturalWidth, h: img.naturalHeight }); };
+      img.onerror = function () { resolve({ ok: false }); };
+      img.src = src + (src.indexOf('?') < 0 ? '?v=' : '&v=') + Date.now();
+    });
+  }
+  function runInstallChecks() {
+    var out = $('bkChecks'); if (!out) return;
+    out.innerHTML = '<li>Verificando…</li>';
+    var rows = [];
+    var add = function (ok, label, detail) { rows.push({ ok: ok, label: label, detail: detail || '' }); };
+    add(window.isSecureContext, 'Endereço seguro (HTTPS)', window.isSecureContext ? '' : 'Abra pelo endereço https://…github.io/bloquinho/');
+    var link = document.querySelector('link[rel="manifest"]');
+    var manifestUrl = link ? new URL(link.getAttribute('href'), location.href).href : '';
+    fetch(manifestUrl, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error('O arquivo manifest.json não foi encontrado no site (erro ' + r.status + '). Envie-o para o repositório.');
+      return r.json().catch(function () { throw new Error('O manifest.json está corrompido. Envie de novo o arquivo do pacote.'); });
+    }).then(function (m) {
+      var miss = ['name', 'short_name', 'start_url', 'display', 'icons'].filter(function (k) { return !m[k]; });
+      add(!miss.length && m.display === 'standalone', 'Manifesto do app', miss.length ? 'Faltam: ' + miss.join(', ') : '');
+      var icons = (m.icons || []).map(function (i) { return { url: new URL(i.src, manifestUrl).href, sizes: i.sizes, name: i.src }; });
+      return Promise.all(icons.map(function (ic) { return loadImage(ic.url).then(function (r) { return { ic: ic, r: r }; }); }));
+    }).then(function (res) {
+      var need = { '192x192': false, '512x512': false };
+      res.forEach(function (x) {
+        var real = x.r.ok ? x.r.w + 'x' + x.r.h : '';
+        var good = x.r.ok && real === x.ic.sizes;
+        if (good && need.hasOwnProperty(real)) need[real] = true;
+        add(good, 'Ícone ' + x.ic.sizes, x.r.ok ? (good ? '' : 'O arquivo tem ' + real) : 'O arquivo ' + x.ic.name + ' não está no site. Envie-o para o repositório.');
+      });
+      if (!need['192x192'] || !need['512x512']) add(false, 'Ícones 192 e 512', 'O Chrome exige os dois para instalar.');
+    }).catch(function (e) {
+      add(false, 'Manifesto do app', e.message);
+    }).then(function () {
+      if (!('serviceWorker' in navigator)) { add(false, 'Funcionamento offline', 'Este navegador não suporta. Use o Chrome.'); return; }
+      return navigator.serviceWorker.getRegistration().then(function (reg) {
+        var active = !!(reg && reg.active);
+        add(active, 'Funcionamento offline (service worker)', active ? (navigator.serviceWorker.controller ? '' : 'Ativo. Feche e abra a página uma vez.') : 'Não iniciou' + (swError ? ': ' + swError : '. Confira se o arquivo sw.js está no repositório.'));
+      });
+    }).then(function () {
+      add(isInstalled() || !!deferredInstall, 'Pronto para instalar', isInstalled() ? 'Já está aberto como app.' : deferredInstall ? 'Toque em Instalar app.' : 'Se tudo acima está certo, o Chrome libera a instalação em alguns segundos. Recarregue a página e tente o menu ⋮ → Instalar app.');
+      out.innerHTML = rows.map(function (r) {
+        return '<li class="' + (r.ok ? 'ok' : 'bad') + '"><span class="dot ' + (r.ok ? 'ok' : 'warn') + '"></span><span><strong>' + esc(r.label) + '</strong>' + (r.detail ? '<br>' + esc(r.detail) : '') + '</span></li>';
+      }).join('');
+    });
   }
 
   // ganchos para testes
